@@ -26,7 +26,7 @@ PERIOD = int(os.getenv('PERIOD'))
 
 # Initialize objects
 swap_app = Celery('tasks', backend='redis://localhost:6379/0', broker='pyamqp://guest@localhost//')
-lq = Liquid(api_key=os.getenv('API_KEY_LIQUID'), api_secret=os.getenv('SECRET_KEY_LIQUID'))
+lq = Liquid()
 tg = Telegram(chat_id=os.getenv('CHAT_ID'), bot_token=os.getenv('BOT_TOKEN'))
 
 # Initialize database
@@ -70,7 +70,7 @@ def setup_task_logger(logger, *args, **kwargs):
 def collect_data():
     data = []
     start = time.time()
-    while time.time() - start < 60:
+    while time.time() - start < 60*60:
         now = time.time()
         try:
             market_info = lq.get_product(product_id=604).json()

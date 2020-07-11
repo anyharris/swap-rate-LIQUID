@@ -1,7 +1,7 @@
 import requests
 
 
-class RestfulAPI():
+class RestfulAPI:
     def _get(self, uri, headers=None, params=None):
         response = requests.get(uri, headers=headers, params=params)
         return response
