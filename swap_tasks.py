@@ -49,7 +49,7 @@ con.commit()
 # Schedule tasks
 swap_app.conf.beat_schedule = {
     'get-swap-data': {
-        'task': 'swap_task.workflow',
+        'task': 'swap_tasks.workflow',
         'schedule': crontab(minute='0', hour='*', day_of_week='*'),
     },
 }
@@ -66,7 +66,7 @@ def setup_task_logger(logger, *args, **kwargs):
     logger.setLevel(logging.INFO)
 
 
-@swap_app.task(name='swap_task.collect_data')
+@swap_app.task(name='swap_tasks.collect_data')
 def collect_data():
     data = []
     start = time.time()
@@ -89,7 +89,7 @@ def collect_data():
     return data
 
 
-@swap_app.task(name='swap_task.swap_average')
+@swap_app.task(name='swap_tasks.swap_average')
 def swap_average(data):
     ts_start = data[0]['timestamp']
     ts_end = data[-1]['timestamp']
@@ -121,7 +121,7 @@ def swap_average(data):
     logger.info(f'sent message: {msg}')
 
 
-@swap_app.task(name='swap_task.workflow')
+@swap_app.task(name='swap_tasks.workflow')
 def workflow():
     chain(collect_data.s(), swap_average.s())()
     logger.info('new time period starting')
