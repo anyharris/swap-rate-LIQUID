@@ -14,10 +14,6 @@ class Liquid(RestfulAPI):
         'Accept': 'application/json'
     }
 
-    def __init__(self, api_key, api_secret):
-        self.API_KEY = api_key
-        self.API_SECRET = api_secret
-
     def get_product(self, product_id):
         path = f'/products/{product_id}'
         uri = self.API_HOST + path
