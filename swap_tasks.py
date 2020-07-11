@@ -8,7 +8,6 @@ from celery import Celery, chain
 from celery.schedules import crontab
 from celery.utils.log import get_task_logger
 from celery.signals import after_setup_task_logger
-from celery.app.log import TaskFormatter
 from dotenv import load_dotenv
 import os
 import psycopg2
@@ -17,11 +16,6 @@ from datetime import datetime
 import logging
 import traceback
 import sys
-"""
-# Logging
-log_format = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
-logging.basicConfig(filename='datamine_postgres.log', level=logging.INFO, format=log_format)
-"""
 
 logger = get_task_logger(__name__)
 
@@ -35,7 +29,7 @@ swap_app = Celery('tasks', backend='redis://localhost:6379/0', broker='pyamqp://
 lq = Liquid(api_key=os.getenv('API_KEY_LIQUID'), api_secret=os.getenv('SECRET_KEY_LIQUID'))
 tg = Telegram(chat_id=os.getenv('CHAT_ID'), bot_token=os.getenv('BOT_TOKEN'))
 
-# Initialize database connection
+# Initialize database
 try:
     con = psycopg2.connect(database=os.getenv('DATABASE'), host=os.getenv('PSQL_HOST'),
                            user=os.getenv('PSQL_USER'), password=os.getenv('PSQL_PASS'))
@@ -56,8 +50,7 @@ con.commit()
 swap_app.conf.beat_schedule = {
     'get-swap-data': {
         'task': 'swap_task.workflow',
-        #'schedule': crontab(minute='0', hour='*', day_of_week='*'),
-        'schedule': crontab(minute='*', hour='*', day_of_week='*'),
+        'schedule': crontab(minute='0', hour='*', day_of_week='*'),
     },
 }
 
@@ -68,7 +61,9 @@ def setup_task_logger(logger, *args, **kwargs):
     log_format = '%(asctime)s:%(levelname)s:%(name)s: %(message)s'
     fh = logging.FileHandler('celery_logs.log')
     fh.setFormatter(logging.Formatter(log_format))
+    fh.setLevel(logging.INFO)
     logger.addHandler(fh)
+    logger.setLevel(logging.INFO)
 
 
 @swap_app.task(name='swap_task.collect_data')
@@ -80,9 +75,9 @@ def collect_data():
         try:
             market_info = lq.get_product(product_id=604).json()
         except Exception as err:
-            logging.error('Couldn\'t get liquid market data')
-            logging.error(err)
-            logging.error(traceback.format_exc())
+            logger.error('Couldn\'t get liquid market data')
+            logger.error(err)
+            logger.error(traceback.format_exc())
             continue
         timestamp = float(market_info['timestamp'])
         funding_rate = float(market_info['funding_rate'])
@@ -107,12 +102,6 @@ def swap_average(data):
         weighted += i['funding_rate'] * (i['timestamp'] - prev_ts)
         prev_ts = i['timestamp']
     average = weighted / (ts_end - ts_start)
-    logging.info(f'funding_rate: {average}, start_time: {datetime.fromtimestamp(ts_start).strftime("%H:%M:%S")}, '
-                 f'end_time {datetime.fromtimestamp(ts_end).strftime("%H:%M:%S")}')
-    """
-    log the average swap rate in the database
-    """
-    """
     try:
         timestamp_readable =datetime.fromtimestamp(ts_end).strftime("%b %d %H:%M:%S")
         cursorObj.execute(
@@ -120,15 +109,15 @@ def swap_average(data):
             (timestamp_readable, average, ts_start, ts_end))
         con.commit()
     except Exception as err:
-        logging.error('Couldn\'t log average.')
-        logging.error(err)
-        logging.error(traceback.format_exc())
-    """
+        logger.error('Couldn\'t log average in database')
+        logger.error(err)
+        logger.error(traceback.format_exc())
+
     """
     send a telegram message with the swap rate
     """
     msg = f'Average hourly swap rate is {average:.2%}'
-    #tg.send_message(msg)
+    tg.send_message(msg)
     logger.info(f'sent message: {msg}')
 
 
