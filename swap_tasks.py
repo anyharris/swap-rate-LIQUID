@@ -7,7 +7,7 @@ to show celery queue:
 sudo rabbitmqctl list_queues
 
 to purge celery queue:
-celery -A tasks purge
+celery -A tasks purge -Q swaps
 """
 from apis import Telegram, Liquid
 from celery import Celery, chain
